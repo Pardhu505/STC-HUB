@@ -20,10 +20,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "functions": {
-    "app/build/static/js/*.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }

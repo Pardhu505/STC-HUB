@@ -381,12 +381,11 @@ async def create_meeting(meeting_data: MeetingCreate, creator_id: str, creator_n
                 },
             }
             
-            # Insert event into calendar
+            # Insert event into calendar (without sending updates to avoid domain delegation issues)
             created_event = calendar_service.events().insert(
                 calendarId='primary',
                 body=event,
-                conferenceDataVersion=1,
-                sendUpdates='all'
+                conferenceDataVersion=1
             ).execute()
             
             meeting_link = created_event.get('conferenceData', {}).get('entryPoints', [{}])[0].get('uri')

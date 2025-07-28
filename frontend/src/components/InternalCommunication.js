@@ -57,6 +57,7 @@ const InternalCommunication = () => {
   const [allEmployeesList, setAllEmployeesList] = useState([]); // For people tab
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [viewMode, setViewMode] = useState('channels'); // 'channels' or 'directChat'
+  const [showFileUpload, setShowFileUpload] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Fetch initial employee list (mock for now)

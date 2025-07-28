@@ -30,7 +30,11 @@ import {
   // Dot, // Not used
   Trash2,
   MoreVertical,
-  Circle
+  Circle,
+  Paperclip,
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import {
   COMMUNICATION_CHANNELS,
@@ -40,6 +44,7 @@ import {
   USER_STATUS as MOCK_USER_STATUS // Keep for "busy" status, online/offline from AuthContext
 } from '../data/mock';
 import DirectChat from './DirectChat';
+import FileUpload, { FileMessage } from './FileUpload';
 
 const InternalCommunication = () => {
   const { user, sendWebSocketMessage, webSocketRef, userStatuses } = useAuth();

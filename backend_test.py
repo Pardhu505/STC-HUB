@@ -15,7 +15,7 @@ import threading
 import time
 
 class ShowTimeAPITester:
-    def __init__(self, base_url="https://2a77fa17-19bc-4315-80dc-d724ac585516.preview.emergentagent.com/api"):
+    def __init__(self, base_url="http://localhost:8001/api"):
         self.base_url = base_url
         self.tests_run = 0
         self.tests_passed = 0

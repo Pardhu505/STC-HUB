@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { findUserByEmail } from '../data/mock'; // Assuming this is still used for initial user lookup
 
 const AuthContext = createContext();
-const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws/';
+const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8001/api/ws/';
 
 
 export const useAuth = () => {

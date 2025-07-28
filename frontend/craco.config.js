@@ -12,6 +12,7 @@ module.exports = {
       '@': path.resolve(__dirname, 'src'),
     },
     configure: (webpackConfig) => {
+      // Add watch options for hot reload delays
       
       // Disable hot reload completely if environment variable is set
       if (config.disableHotReload) {
@@ -25,22 +26,10 @@ module.exports = {
         webpackConfig.watchOptions = {
           ignored: /.*/, // Ignore all files
         };
-      } else {
-        // Add ignored patterns to reduce watched directories
-        webpackConfig.watchOptions = {
-          ...webpackConfig.watchOptions,
-          ignored: [
-            '**/node_modules/**',
-            '**/.git/**',
-            '**/build/**',
-            '**/dist/**',
-            '**/coverage/**',
-            '**/public/**',
-          ],
-        };
       }
       
       return webpackConfig;
     },
   },
 };
+  

@@ -262,7 +262,38 @@ const DirectChat = ({ selectedEmployee, onBack }) => {
         </div>
 
         <div className="p-4 border-t border-gray-200 bg-white/90">
+          {/* File Upload Section */}
+          {showFileUpload && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">Share a file</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFileUpload(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <FileUpload
+                onFileUploaded={handleFileUploaded}
+                recipientId={recipientId}
+                disabled={!user || !recipientId}
+              />
+            </div>
+          )}
+          
           <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFileUpload(!showFileUpload)}
+              disabled={!user || !recipientId}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
             <Input
               placeholder={`Message ${selectedEmployee.Name}`}
               value={newMessage}

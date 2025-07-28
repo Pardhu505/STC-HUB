@@ -85,6 +85,7 @@ const DirectChat = ({ selectedEmployee, onBack }) => {
         sender_id: user.id,
         sender_name: user.name,
         content: newMessage,
+        message_type: 'text',
         // timestamp and id will be added by backend
       };
       sendWebSocketMessage(messagePayload);
@@ -97,6 +98,11 @@ const DirectChat = ({ selectedEmployee, onBack }) => {
       // setMessages(prevMessages => [...prevMessages, optimisticMessage]);
       setNewMessage('');
     }
+  };
+
+  const handleFileUploaded = (fileInfo) => {
+    // File upload success - message will be received via WebSocket
+    setShowFileUpload(false);
   };
 
   // TODO: Implement message deletion with backend if needed

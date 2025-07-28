@@ -110,7 +110,7 @@ const MeetingScheduler = () => {
 
     try {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-      const response = await fetch(`${backendUrl}/api/meetings/${meetingId}?user_id=${user.id}`, {
+      const response = await fetch(`${backendUrl}/meetings/${meetingId}?user_id=${user.id}`, {
         method: 'DELETE',
       });
 

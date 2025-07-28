@@ -268,7 +268,7 @@ class ShowTimeAPITester:
     def test_websocket_connection(self):
         """Test WebSocket connection"""
         try:
-            ws_url = "wss://2a77fa17-19bc-4315-80dc-d724ac585516.preview.emergentagent.com/api/ws/test_user_123"
+            ws_url = "ws://localhost:8001/api/ws/test_user_123"
             
             connection_successful = False
             message_received = False

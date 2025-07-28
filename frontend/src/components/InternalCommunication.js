@@ -546,9 +546,20 @@ const InternalCommunication = () => {
                     </DropdownMenu>
                   )}
                 </div>
-                <p className={`text-sm ${message.deleted ? 'text-gray-400 italic' : 'text-gray-700'}`}>
-                  {message.content}
-                </p>
+                
+                <div className="space-y-2">
+                  {/* Text content */}
+                  {message.content && (
+                    <p className={`text-sm ${message.deleted ? 'text-gray-400 italic' : 'text-gray-700'}`}>
+                      {message.content}
+                    </p>
+                  )}
+                  
+                  {/* File content */}
+                  {message.type === 'file' && message.file_url && (
+                    <FileMessage message={message} />
+                  )}
+                </div>
               </div>
             </div>
           ))}

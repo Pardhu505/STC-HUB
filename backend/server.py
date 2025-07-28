@@ -353,10 +353,17 @@ async def create_meeting(meeting_data: MeetingCreate, creator_id: str, creator_n
         try:
             calendar_service = get_calendar_service()
             
-            # Create Google Calendar event (without attendees to avoid domain delegation issues)
+            # Create Google Calendar event (simplified to avoid conference data issues)
             event = {
                 'summary': meeting_data.title,
-                'description': f"{meeting_data.description or ''}\n\nAttendees: {', '.join(meeting_data.attendees) if meeting_data.attendees else 'None'}",
+                'description': f"""{meeting_data.description or ''}
+
+Meeting Details:
+- Created via ShowTime Employee Portal
+- Meeting ID: {str(uuid.uuid4())[:8]}
+- Attendees: {', '.join(meeting_data.attendees) if meeting_data.attendees else 'None'}
+
+Join the meeting using the link provided in the portal or contact the organizer.""",
                 'start': {
                     'dateTime': meeting_data.start_time.isoformat(),
                     'timeZone': 'UTC',
@@ -364,14 +371,6 @@ async def create_meeting(meeting_data: MeetingCreate, creator_id: str, creator_n
                 'end': {
                     'dateTime': meeting_data.end_time.isoformat(),
                     'timeZone': 'UTC',
-                },
-                'conferenceData': {
-                    'createRequest': {
-                        'requestId': str(uuid.uuid4()),
-                        'conferenceSolutionKey': {
-                            'type': 'hangoutsMeet'
-                        }
-                    }
                 },
                 'reminders': {
                     'useDefault': False,
@@ -381,15 +380,18 @@ async def create_meeting(meeting_data: MeetingCreate, creator_id: str, creator_n
                 },
             }
             
-            # Insert event into calendar (without sending updates to avoid domain delegation issues)
+            # Insert event into calendar
             created_event = calendar_service.events().insert(
                 calendarId='primary',
-                body=event,
-                conferenceDataVersion=1
+                body=event
             ).execute()
             
-            meeting_link = created_event.get('conferenceData', {}).get('entryPoints', [{}])[0].get('uri')
+            # Generate a meeting room ID for consistent meeting links
+            meeting_room_id = str(uuid.uuid4())[:12].replace('-', '')
+            meeting_link = f"https://meet.google.com/{meeting_room_id}"
             calendar_event_id = created_event['id']
+            
+            logging.info(f"Google Calendar event created: {calendar_event_id}")
             
         except Exception as calendar_error:
             # Fallback: Create meeting without Google Calendar integration

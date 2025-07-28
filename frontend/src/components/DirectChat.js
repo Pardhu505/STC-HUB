@@ -16,10 +16,13 @@ import {
   Send, 
   Clock, 
   MoreVertical, 
-  Trash2, 
+  Trash2,
+  Paperclip,
+  X
   // Circle // Not using Circle for status indicator here directly, relies on color
 } from 'lucide-react';
 import { USER_STATUS as MOCK_USER_STATUS } from '../data/mock'; // Renamed for clarity
+import FileUpload, { FileMessage } from './FileUpload';
 
 const DirectChat = ({ selectedEmployee, onBack }) => {
   const { user, sendWebSocketMessage, webSocketRef, userStatuses } = useAuth();

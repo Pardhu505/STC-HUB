@@ -248,7 +248,7 @@ async def upload_file(
         # Create file metadata
         file_metadata = {
             'name': file.filename,
-            'parents': ['1BvuJeYdqn0jP6qz2dKhxE2hE8kOdLmIf']  # You may want to create a dedicated folder
+            'parents': ['1dJho0GLIuDmDAXcUnTdK1t_SBXLlGnT0']  # ShowTime Employee Portal Files folder
         }
         
         # Create media upload

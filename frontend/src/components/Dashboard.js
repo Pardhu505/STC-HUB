@@ -53,6 +53,8 @@ const Dashboard = () => {
         return <UserProfile />;
       case 'communication':
         return <InternalCommunication />;
+      case 'meetings':
+        return <MeetingScheduler />;
       case 'admin':
         return <AdminPanel />;
       case 'payslips':

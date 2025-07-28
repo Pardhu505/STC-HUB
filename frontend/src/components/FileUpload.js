@@ -59,7 +59,7 @@ const FileUpload = ({ onFileUploaded, channelId, recipientId, disabled = false }
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
 
-      const response = await fetch(`${backendUrl}/api/files/upload`, {
+      const response = await fetch(`${backendUrl}/files/upload`, {
         method: 'POST',
         body: formData,
       });

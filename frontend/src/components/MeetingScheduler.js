@@ -51,7 +51,7 @@ const MeetingScheduler = () => {
     try {
       setLoading(true);
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-      const response = await fetch(`${backendUrl}/api/meetings?user_id=${user.id}`);
+      const response = await fetch(`${backendUrl}/meetings?user_id=${user.id}`);
       
       if (response.ok) {
         const data = await response.json();

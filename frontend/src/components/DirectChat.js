@@ -28,6 +28,7 @@ const DirectChat = ({ selectedEmployee, onBack }) => {
   const { user, sendWebSocketMessage, webSocketRef, userStatuses } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [showFileUpload, setShowFileUpload] = useState(false);
   const messagesEndRef = useRef(null);
 
   const recipientId = selectedEmployee && selectedEmployee["Email ID"]; // Get recipient's ID

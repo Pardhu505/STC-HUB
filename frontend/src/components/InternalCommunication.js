@@ -182,6 +182,7 @@ const InternalCommunication = () => {
         sender_id: user.id, // Use user.id from AuthContext
         sender_name: user.name,
         content: newMessage,
+        message_type: 'text',
         // timestamp will be added by backend
       };
       sendWebSocketMessage(messagePayload);
@@ -189,6 +190,11 @@ const InternalCommunication = () => {
       // setMessages(prev => [...prev, {...messagePayload, id: Date.now().toString(), timestamp: new Date().toISOString()}]);
       setNewMessage('');
     }
+  };
+
+  const handleFileUploaded = (fileInfo) => {
+    // File upload success - message will be received via WebSocket
+    setShowFileUpload(false);
   };
 
   const getChannelMessages = () => {

@@ -353,10 +353,10 @@ async def create_meeting(meeting_data: MeetingCreate, creator_id: str, creator_n
         try:
             calendar_service = get_calendar_service()
             
-            # Create Google Calendar event
+            # Create Google Calendar event (without attendees to avoid domain delegation issues)
             event = {
                 'summary': meeting_data.title,
-                'description': meeting_data.description or '',
+                'description': f"{meeting_data.description or ''}\n\nAttendees: {', '.join(meeting_data.attendees) if meeting_data.attendees else 'None'}",
                 'start': {
                     'dateTime': meeting_data.start_time.isoformat(),
                     'timeZone': 'UTC',
@@ -365,7 +365,6 @@ async def create_meeting(meeting_data: MeetingCreate, creator_id: str, creator_n
                     'dateTime': meeting_data.end_time.isoformat(),
                     'timeZone': 'UTC',
                 },
-                'attendees': [{'email': email} for email in meeting_data.attendees],
                 'conferenceData': {
                     'createRequest': {
                         'requestId': str(uuid.uuid4()),
@@ -377,7 +376,6 @@ async def create_meeting(meeting_data: MeetingCreate, creator_id: str, creator_n
                 'reminders': {
                     'useDefault': False,
                     'overrides': [
-                        {'method': 'email', 'minutes': 24 * 60},
                         {'method': 'popup', 'minutes': 10},
                     ],
                 },

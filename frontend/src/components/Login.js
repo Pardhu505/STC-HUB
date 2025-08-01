@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -147,6 +147,12 @@ const Login = () => {
               )}
             </Button>
           </form>
+          <div className="mt-4 text-center text-sm">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-medium text-blue-600 hover:underline">
+              Sign up
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

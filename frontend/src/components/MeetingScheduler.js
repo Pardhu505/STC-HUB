@@ -77,10 +77,12 @@ const MeetingScheduler = () => {
       const meetingData = {
         ...formData,
         start_time: new Date(formData.start_time).toISOString(),
-        end_time: new Date(formData.end_time).toISOString()
+        end_time: new Date(formData.end_time).toISOString(),
+        creator_id: user.id,
+        creator_name: user.name,
       };
 
-      const response = await fetch(`${backendUrl}/meetings?creator_id=${user.id}&creator_name=${encodeURIComponent(user.name)}`, {
+      const response = await fetch(`${backendUrl}/api/meetings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

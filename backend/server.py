@@ -18,6 +18,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 from google.auth.exceptions import RefreshError
+from backend.mock_data import DEPARTMENT_DATA
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -120,11 +121,28 @@ class Message(BaseModel):
 
 class Employee(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
+    firstName: str
+    lastName: str
+    name: Optional[str] = None
     email: str
     designation: str
     department: str
+    team: Optional[str] = None
+    hashed_password: str
     date_of_birth: str | None = None
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.name:
+            self.name = f"{self.firstName} {self.lastName}"
+
+class UserCreate(BaseModel):
+    firstName: str
+    lastName: str
+    email: str
+    department: str
+    team: Optional[str] = None
+    password: str
 
 class Meeting(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -145,6 +163,8 @@ class MeetingCreate(BaseModel):
     start_time: datetime
     end_time: datetime
     attendees: List[str] = []
+    creator_id: str
+    creator_name: str
 
 # Define Models for existing status checks - might be deprecated or changed
 class StatusCheck(BaseModel):
@@ -237,37 +257,42 @@ async def upload_file(
     recipient_id: Optional[str] = Form(None)
 ):
     """Upload file to Google Drive and create message"""
+    logging.info(f"File upload endpoint hit. Sender: {sender_id}, Channel: {channel_id}, Recipient: {recipient_id}")
+
     try:
-        # Read file content
         file_content = await file.read()
         file_size = len(file_content)
-        
+        logging.info(f"Read file '{file.filename}' with size {file_size} bytes.")
+
         # Upload to Google Drive
         drive_service = get_drive_service()
-        
-        # Create file metadata
-        file_metadata = {
-            'name': file.filename,
-            'parents': ['1dJho0GLIuDmDAXcUnTdK1t_SBXLlGnT0']  # ShowTime Employee Portal Files folder
-        }
-        
-        # Create media upload
+        file_metadata = {'name': file.filename, 'parents': ['1dJho0GLIuDmDAXcUnTdK1t_SBXLlGnT0']}
         media = MediaIoBaseUpload(io.BytesIO(file_content), mimetype=file.content_type, resumable=True)
         
-        # Upload file
-        uploaded_file = drive_service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id,name,webViewLink,size'
-        ).execute()
-        
-        # Make file publicly readable
-        drive_service.permissions().create(
-            fileId=uploaded_file['id'],
-            body={'role': 'reader', 'type': 'anyone'}
-        ).execute()
-        
-        # Create message with file info
+        uploaded_file = None
+        try:
+            logging.info("Uploading to Google Drive...")
+            uploaded_file = drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id,name,webViewLink,size'
+            ).execute()
+            logging.info(f"Google Drive upload successful. File ID: {uploaded_file.get('id')}")
+        except Exception as drive_error:
+            logging.error(f"Google Drive API error during file creation: {drive_error}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to upload file to Google Drive.")
+
+        try:
+            drive_service.permissions().create(
+                fileId=uploaded_file['id'],
+                body={'role': 'reader', 'type': 'anyone'}
+            ).execute()
+            logging.info(f"Set public read permission for file ID: {uploaded_file.get('id')}")
+        except Exception as perm_error:
+            logging.error(f"Google Drive API error setting permissions: {perm_error}", exc_info=True)
+            # Decide if this is a critical failure. For now, we'll proceed but log a warning.
+            logging.warning("Could not set public permissions. File may not be accessible.")
+
         file_message = Message(
             sender_id=sender_id,
             sender_name=sender_name,
@@ -277,39 +302,41 @@ async def upload_file(
             type="file",
             file_url=uploaded_file.get('webViewLink'),
             file_name=file.filename,
-            file_id=uploaded_file['id'],
+            file_id=uploaded_file.get('id'),
             file_size=file_size,
             file_type=file.content_type
         )
-        
-        # Save message to DB
-        message_dict = file_message.model_dump(exclude={"id"})
+
+        message_dict = file_message.model_dump()
         await db.messages.insert_one(message_dict)
+        logging.info(f"Saved file message to DB for sender {sender_id}.")
+
+        if 'timestamp' in message_dict and isinstance(message_dict['timestamp'], datetime):
+            message_dict['timestamp'] = message_dict['timestamp'].isoformat()
+
+        # Broadcast the message via WebSocket
+        if recipient_id:
+            await manager.send_personal_message(json.dumps(message_dict), recipient_id)
+            await manager.send_personal_message(json.dumps(message_dict), sender_id)
+        else:
+            await manager.broadcast(json.dumps(message_dict))
         
-        # Broadcast file message via WebSocket
-        message_to_send = file_message.model_dump()
-        if 'timestamp' in message_to_send and isinstance(message_to_send['timestamp'], datetime):
-            message_to_send['timestamp'] = message_to_send['timestamp'].isoformat()
-        
-        if recipient_id:  # Direct message
-            await manager.send_personal_message(json.dumps(message_to_send), recipient_id)
-            await manager.send_personal_message(json.dumps(message_to_send), sender_id)
-        elif channel_id:  # Channel message
-            await manager.broadcast(json.dumps(message_to_send))
-        else:  # General broadcast
-            await manager.broadcast(json.dumps(message_to_send))
-        
+        logging.info("Broadcasted file message via WebSocket.")
+
         return {
             "message": "File uploaded successfully",
-            "file_id": uploaded_file['id'],
+            "file_id": uploaded_file.get('id'),
             "file_url": uploaded_file.get('webViewLink'),
             "file_name": file.filename,
             "file_size": file_size
         }
-        
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPException to avoid being caught by the generic Exception handler
+        raise http_exc
     except Exception as e:
-        logging.error(f"File upload error: {e}")
-        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+        logging.error(f"An unexpected error occurred in upload_file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during file upload.")
 
 @api_router.get("/files/download/{file_id}")
 async def download_file(file_id: str):
@@ -346,84 +373,68 @@ async def download_file(file_id: str):
 
 # --- Meeting Endpoints ---
 @api_router.post("/meetings", response_model=Meeting)
-async def create_meeting(meeting_data: MeetingCreate, creator_id: str, creator_name: str):
+async def create_meeting(meeting_data: MeetingCreate):
     """Create a new meeting with Google Calendar integration"""
     try:
-        # First, try Google Calendar integration
+        meeting_link = None
+        calendar_event_id = None
+
         try:
+            logging.info("Attempting to create Google Calendar event.")
             calendar_service = get_calendar_service()
             
-            # Create Google Calendar event (simplified to avoid conference data issues)
             event = {
                 'summary': meeting_data.title,
-                'description': f"""{meeting_data.description or ''}
-
-Meeting Details:
-- Created via ShowTime Employee Portal
-- Meeting ID: {str(uuid.uuid4())[:8]}
-- Attendees: {', '.join(meeting_data.attendees) if meeting_data.attendees else 'None'}
-
-Join the meeting using the link provided in the portal or contact the organizer.""",
-                'start': {
-                    'dateTime': meeting_data.start_time.isoformat(),
-                    'timeZone': 'UTC',
+                'description': meeting_data.description or '',
+                'start': {'dateTime': meeting_data.start_time.isoformat(), 'timeZone': 'UTC'},
+                'end': {'dateTime': meeting_data.end_time.isoformat(), 'timeZone': 'UTC'},
+                'attendees': [{'email': email} for email in meeting_data.attendees],
+                'conferenceData': {
+                    'createRequest': {
+                        'requestId': f"{str(uuid.uuid4())}",
+                        'conferenceSolutionKey': {'type': 'hangoutsMeet'}
+                    }
                 },
-                'end': {
-                    'dateTime': meeting_data.end_time.isoformat(),
-                    'timeZone': 'UTC',
-                },
-                'reminders': {
-                    'useDefault': False,
-                    'overrides': [
-                        {'method': 'popup', 'minutes': 10},
-                    ],
-                },
+                'reminders': {'useDefault': True},
             }
             
-            # Insert event into calendar
             created_event = calendar_service.events().insert(
                 calendarId='primary',
-                body=event
+                body=event,
+                conferenceDataVersion=1
             ).execute()
             
-            # Generate a meeting room ID for consistent meeting links
-            meeting_room_id = str(uuid.uuid4())[:12].replace('-', '')
-            meeting_link = f"https://meet.google.com/{meeting_room_id}"
-            calendar_event_id = created_event['id']
-            
-            logging.info(f"Google Calendar event created: {calendar_event_id}")
-            
+            calendar_event_id = created_event.get('id')
+            meeting_link = created_event.get('hangoutLink')
+            logging.info(f"Successfully created Google Calendar event: {calendar_event_id}, Link: {meeting_link}")
+
         except Exception as calendar_error:
-            # Fallback: Create meeting without Google Calendar integration
-            logging.warning(f"Google Calendar integration failed: {calendar_error}")
-            
-            # Generate a demo meeting link for testing
-            meeting_id = str(uuid.uuid4())
-            meeting_link = f"https://meet.google.com/demo-{meeting_id[:8]}"
-            calendar_event_id = None
-        
-        # Create meeting object
+            logging.error(f"Google Calendar integration failed: {calendar_error}", exc_info=True)
+            # Fallback to a generic link if Google Calendar fails
+            meeting_id_for_link = str(uuid.uuid4())
+            meeting_link = f"https://showtime-portal.com/meet/{meeting_id_for_link[:12]}"
+            logging.warning(f"Falling back to generic meeting link: {meeting_link}")
+
         meeting = Meeting(
             title=meeting_data.title,
             description=meeting_data.description,
             start_time=meeting_data.start_time,
             end_time=meeting_data.end_time,
             attendees=meeting_data.attendees,
-            creator_id=creator_id,
-            creator_name=creator_name,
+            creator_id=meeting_data.creator_id,
+            creator_name=meeting_data.creator_name,
             meeting_link=meeting_link,
             calendar_event_id=calendar_event_id
         )
         
-        # Save to database
-        meeting_dict = meeting.model_dump(exclude={"id"})
+        meeting_dict = meeting.model_dump(exclude_defaults=True)
         await db.meetings.insert_one(meeting_dict)
         
         return meeting
         
     except Exception as e:
-        logging.error(f"Meeting creation error: {e}")
-        raise HTTPException(status_code=500, detail=f"Meeting creation failed: {str(e)}")
+        logging.error(f"Error in create_meeting endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create meeting.")
 
 @api_router.get("/meetings", response_model=List[Meeting])
 async def get_meetings(user_id: str = None, limit: int = 50):
@@ -480,6 +491,76 @@ async def delete_meeting(meeting_id: str, user_id: str):
     except Exception as e:
         logging.error(f"Meeting deletion error: {e}")
         raise HTTPException(status_code=500, detail=f"Meeting deletion failed: {str(e)}")
+
+from passlib.context import CryptContext
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+
+# --- Auth ---
+SECRET_KEY = os.environ.get("SECRET_KEY", "a_super_secret_key_that_should_be_in_env")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 day
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+auth_router = APIRouter(prefix="/api/auth")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+@auth_router.post("/signup", response_model=Employee)
+async def signup(user_data: UserCreate):
+    # Check if user already exists
+    existing_user = await db.employees.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    hashed_password = get_password_hash(user_data.password)
+
+    employee_data = user_data.model_dump()
+    employee_data.pop("password")
+    employee_data["hashed_password"] = hashed_password
+
+    # Create the full name
+    employee_data["name"] = f"{user_data.firstName} {user_data.lastName}"
+
+    employee = Employee(**employee_data)
+
+    await db.employees.insert_one(employee.model_dump())
+
+    return employee
+
+@auth_router.post("/login")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await db.employees.find_one({"email": form_data.username})
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user["email"], "id": user["id"]}, expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer", "user": user}
+
 
 # --- Employee CRUD Endpoints ---
 @api_router.post("/employees", response_model=Employee)
@@ -602,8 +683,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
         logging.info(f"User {user_id} fully processed disconnection.")
 
 
-# Include the router in the main app
+# Include the routers in the main app
 app.include_router(api_router)
+app.include_router(auth_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -620,6 +702,35 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+async def populate_initial_data():
+    """Populates the database with initial employee data if it's empty."""
+    try:
+        # Check if the employees collection is empty
+        if await db.employees.count_documents({}) == 0:
+            logger.info("Employees collection is empty. Populating with initial data...")
+
+            employees_to_insert = []
+            for department, teams in DEPARTMENT_DATA.items():
+                for team, employees in teams.items():
+                    for employee_data in employees:
+                        employee = Employee(
+                            name=employee_data["Name"],
+                            email=employee_data["Email ID"],
+                            designation=employee_data["Designation"],
+                            department=department,
+                            # team=team, # Add team to model if needed
+                        )
+                        employees_to_insert.append(employee.model_dump())
+
+            if employees_to_insert:
+                await db.employees.insert_many(employees_to_insert)
+                logger.info(f"Successfully inserted {len(employees_to_insert)} employees into the database.")
+        else:
+            logger.info("Employees collection already contains data. Skipping population.")
+    except Exception as e:
+        logger.error(f"Error during initial data population: {e}")
+
+
 @app.on_event("startup")
 async def startup_event():
     try:
@@ -627,6 +738,9 @@ async def startup_event():
         logger.info("MongoDB connection successful.")
     except Exception as e:
         logger.error(f"MongoDB connection failed: {e}")
+
+    await populate_initial_data()
+
     # Initialize anything needed on startup, e.g., load initial statuses from DB if persisted
     logger.info("Application startup: WebSocket ConnectionManager initialized.")
     # Test Google Services

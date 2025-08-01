@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Toaster } from "./components/ui/toaster";
 import Login from "./components/Login";
+import Signup from "./components/Signup";
 import Dashboard from "./components/Dashboard";
 
 const ProtectedRoute = ({ children }) => {
@@ -49,6 +50,11 @@ function App() {
             <Route path="/login" element={
               <PublicRoute>
                 <Login />
+              </PublicRoute>
+            } />
+            <Route path="/signup" element={
+              <PublicRoute>
+                <Signup />
               </PublicRoute>
             } />
             <Route path="/dashboard" element={

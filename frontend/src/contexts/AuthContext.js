@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { findUserByEmail } from '../data/mock'; // Assuming this is still used for initial user lookup
 
 const AuthContext = createContext();
 const WS_URL = 'ws://localhost:8001/api/ws/';
@@ -114,49 +113,32 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // Check for admin login
-      if (email === 'admin@showtimeconsulting.in' && password === 'Welcome@123') {
-        const userData = {
-          id: 'admin@showtimeconsulting.in', // Ensure 'id' is the standard field
-          name: 'System Administrator',
-          email: 'admin@showtimeconsulting.in',
-          designation: 'System Admin',
-          department: 'Admin',
-          subDepartment: 'System Admin',
-          reviewer: 'Management',
-          isAdmin: true,
-          loginTime: new Date().toISOString()
-        };
-        setUser(userData);
-        localStorage.setItem('showtimeUser', JSON.stringify(userData));
-        // connectWebSocket(userData.id); // WebSocket connection handled by useEffect on `user`
-        return userData;
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+      const response = await fetch(`${backendUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          username: email,
+          password: password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
       }
 
-      const foundUser = findUserByEmail(email);
-      if (!foundUser) {
-        throw new Error('User not found');
-      }
-
-      if (password !== 'Welcome@123') { // Using a hardcoded password as per existing logic
-        throw new Error('Invalid password');
-      }
-
+      const data = await response.json();
       const userData = {
-        id: foundUser["Email ID"], // Ensure 'id' is the standard field
-        name: foundUser.Name,
-        email: foundUser["Email ID"],
-        designation: foundUser.Designation,
-        department: foundUser.Department,
-        subDepartment: foundUser.SubDepartment,
-        reviewer: foundUser.Reviewer,
-        isAdmin: false,
+        ...data.user,
+        isAdmin: data.user.email === 'admin@showtimeconsulting.in', // Example admin check
         loginTime: new Date().toISOString()
       };
 
       setUser(userData);
       localStorage.setItem('showtimeUser', JSON.stringify(userData));
-      // connectWebSocket(userData.id); // WebSocket connection handled by useEffect on `user`
+      localStorage.setItem('showtimeToken', data.access_token);
+
       return userData;
     } catch (error) {
       console.error("Login failed:", error);

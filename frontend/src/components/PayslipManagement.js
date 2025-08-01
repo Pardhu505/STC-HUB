@@ -19,13 +19,13 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import { getAllEmployees } from '../data/mock';
 import { useToast } from '../hooks/use-toast';
 
 const PayslipManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [payslips, setPayslips] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
@@ -37,10 +37,27 @@ const PayslipManagement = () => {
 
   const isAdmin = user?.isAdmin || user?.email === 'admin@showtimeconsulting.in';
 
-  // Load employees and payslips
   useEffect(() => {
-    setEmployees(getAllEmployees());
-    
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true);
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+        const response = await fetch(`${backendUrl}/api/employees`);
+        if (response.ok) {
+          const data = await response.json();
+          setEmployees(data);
+        } else {
+          toast({ title: "Error", description: "Failed to fetch employees.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "An error occurred while fetching employees.", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployees();
+
     // Load payslips from localStorage
     const savedPayslips = localStorage.getItem('payslips');
     if (savedPayslips) {
@@ -102,7 +119,7 @@ const PayslipManagement = () => {
       const payslip = {
         id: Date.now(),
         employeeEmail: selectedEmployee,
-        employeeName: employees.find(emp => emp["Email ID"] === selectedEmployee)?.Name,
+        employeeName: employees.find(emp => emp.email === selectedEmployee)?.name,
         month: selectedMonth,
         year: selectedYear,
         fileName: uploadFile.name,
@@ -213,8 +230,8 @@ const PayslipManagement = () => {
                 >
                   <option value="">Select Employee</option>
                   {employees.map((emp) => (
-                    <option key={emp["Email ID"]} value={emp["Email ID"]}>
-                      {emp.Name} - {emp.Department}
+                    <option key={emp.email} value={emp.email}>
+                      {emp.name} - {emp.department}
                     </option>
                   ))}
                 </select>

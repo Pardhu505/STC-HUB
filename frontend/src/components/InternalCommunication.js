@@ -36,33 +36,76 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import {
-  COMMUNICATION_CHANNELS,
-  // MOCK_MESSAGES, // To be replaced by WebSocket messages
-  getAllEmployees, // This might still be used for directory, or fetched from API
-  DEPARTMENT_DATA, // This might still be used for directory, or fetched from API
-  USER_STATUS as MOCK_USER_STATUS // Keep for "busy" status, online/offline from AuthContext
-} from '../data/mock';
+import { USER_STATUS as MOCK_USER_STATUS } from '../data/mock';
 import DirectChat from './DirectChat';
 import FileUpload, { FileMessage } from './FileUpload';
 
 const InternalCommunication = () => {
   const { user, sendWebSocketMessage, webSocketRef, userStatuses } = useAuth();
-  const [selectedChannel, setSelectedChannel] = useState(COMMUNICATION_CHANNELS[0]);
   const [messages, setMessages] = useState([]); // Messages will come from WebSocket
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('channels');
-  // const [userStatus, setUserStatusState] = useState(MOCK_USER_STATUS.ONLINE); // Current user's status, primarily for "busy"
-  const [allEmployeesList, setAllEmployeesList] = useState([]); // For people tab
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [channels, setChannels] = useState([]);
+  const [directory, setDirectory] = useState({});
+  const [selectedChannel, setSelectedChannel] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [viewMode, setViewMode] = useState('channels'); // 'channels' or 'directChat'
   const [showFileUpload, setShowFileUpload] = useState(false);
   const messagesEndRef = useRef(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch initial employee list (mock for now)
+
   useEffect(() => {
-    setAllEmployeesList(getAllEmployees());
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true);
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+        const response = await fetch(`${backendUrl}/api/employees`);
+        if (response.ok) {
+          const employeesData = await response.json();
+          setAllEmployees(employeesData);
+
+          // Process data for channels and directory
+          const departmentChannels = {};
+          const directoryData = {};
+
+          employeesData.forEach(emp => {
+            if (!departmentChannels[emp.department]) {
+              departmentChannels[emp.department] = {
+                id: `dept-${emp.department.toLowerCase().replace(/ /g, '-')}`,
+                name: emp.department,
+                type: 'department',
+                memberCount: 0,
+                description: `${emp.department} department discussions`,
+              };
+              directoryData[emp.department] = [];
+            }
+            departmentChannels[emp.department].memberCount++;
+            directoryData[emp.department].push(emp);
+          });
+
+          const generatedChannels = [
+            { id: 'general', name: 'general', type: 'public', memberCount: employeesData.length, description: 'General company announcements' },
+            ...Object.values(departmentChannels)
+          ];
+
+          setChannels(generatedChannels);
+          setDirectory(directoryData);
+
+          if (generatedChannels.length > 0) {
+            setSelectedChannel(generatedChannels[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployees();
   }, []);
 
   // Current user's status from AuthContext, default to 'offline' if not found
@@ -203,18 +246,16 @@ const InternalCommunication = () => {
   };
 
   const getFilteredChannels = () => {
-    return COMMUNICATION_CHANNELS.filter(channel =>
+    return channels.filter(channel =>
       channel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (channel.description && channel.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   };
 
-  // This uses mock data. Ideally, employee list with statuses comes from backend or AuthContext.userStatuses
   const getEmployeesForPeopleTab = () => {
-    return allEmployeesList.map(emp => ({
+    return allEmployees.map(emp => ({
       ...emp,
-      // 'Email ID' is the key in mock data, ensure it matches user.id format if used for keys
-      status: userStatuses[emp['Email ID']] || MOCK_USER_STATUS.OFFLINE
+      status: userStatuses[emp.email] || MOCK_USER_STATUS.OFFLINE
     }));
   };
 
@@ -382,30 +423,30 @@ const InternalCommunication = () => {
               <span className="text-xs text-gray-500">{getEmployeesForPeopleTab().length} members</span>
             </div>
             {getEmployeesForPeopleTab()
-              .filter(emp => emp.Name.toLowerCase().includes(searchTerm.toLowerCase()))
-              .map((emp) => ( // emp.id should be emp["Email ID"] from mock
-                <div 
-                  key={emp["Email ID"]}
+              .filter(emp => emp.name.toLowerCase().includes(searchTerm.toLowerCase()))
+              .map((emp) => (
+                <div
+                  key={emp.email}
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleEmployeeClick(emp)} // emp here is the full employee object from mock
+                  onClick={() => handleEmployeeClick(emp)}
                 >
                   <div className="relative">
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className="bg-[#225F8B] text-white text-xs">
-                        {emp.Name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        {emp.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     <div className={`absolute -bottom-0 -right-0 w-3 h-3 border-2 border-white rounded-full ${
-                       (userStatuses[emp["Email ID"]] === MOCK_USER_STATUS.ONLINE) ? 'bg-green-500' :
-                       (userStatuses[emp["Email ID"]] === MOCK_USER_STATUS.BUSY) ? 'bg-red-500' : 'bg-gray-400'
+                       (userStatuses[emp.email] === MOCK_USER_STATUS.ONLINE) ? 'bg-green-500' :
+                       (userStatuses[emp.email] === MOCK_USER_STATUS.BUSY) ? 'bg-red-500' : 'bg-gray-400'
                     }`}></div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">{emp.Name}</div>
+                    <div className="text-sm font-medium text-gray-900 truncate">{emp.name}</div>
                     <div className="text-xs text-gray-500 truncate flex items-center">
-                      <span>{emp.Designation} • {emp.Department}</span>
-                      <span className={`ml-2 text-xs ${getStatusColor(userStatuses[emp["Email ID"]] || MOCK_USER_STATUS.OFFLINE)}`}>
-                        {getStatusText(userStatuses[emp["Email ID"]] || MOCK_USER_STATUS.OFFLINE)}
+                      <span>{emp.designation} • {emp.department}</span>
+                      <span className={`ml-2 text-xs ${getStatusColor(userStatuses[emp.email] || MOCK_USER_STATUS.OFFLINE)}`}>
+                        {getStatusText(userStatuses[emp.email] || MOCK_USER_STATUS.OFFLINE)}
                       </span>
                     </div>
                   </div>
@@ -415,58 +456,44 @@ const InternalCommunication = () => {
         )}
 
         {activeTab === 'directory' && (
-          <div className="space-y-4"> {/* Directory still uses MOCK data, can be API driven */}
+          <div className="space-y-4">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Company Directory</h3>
-            {Object.keys(DEPARTMENT_DATA).map((dept) => {
-              const deptEmployees = Object.values(DEPARTMENT_DATA[dept]).flat();
-              return (
-                <div key={dept} className="space-y-2">
-                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Building className="h-4 w-4 text-[#225F8B]" />
-                      <span className="font-semibold text-[#225F8B] text-sm">{dept}</span>
-                    </div>
-                    <Badge variant="outline" className="text-xs bg-white">
-                      {deptEmployees.length} members
-                    </Badge>
+            {Object.keys(directory).map((dept) => (
+              <div key={dept} className="space-y-2">
+                <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Building className="h-4 w-4 text-[#225F8B]" />
+                    <span className="font-semibold text-[#225F8B] text-sm">{dept}</span>
                   </div>
-                  
-                  {Object.keys(DEPARTMENT_DATA[dept]).map((subDept) => (
-                    <div key={subDept} className="ml-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <ChevronRight className="h-3 w-3 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-700">{subDept}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {DEPARTMENT_DATA[dept][subDept].length}
-                        </Badge>
+                  <Badge variant="outline" className="text-xs bg-white">
+                    {directory[dept].length} members
+                  </Badge>
+                </div>
+
+                <div className="ml-6 space-y-1">
+                  {directory[dept]
+                  .filter(e => e.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .map((emp) => (
+                    <div key={emp.email} className="flex items-center space-x-2 py-1 hover:bg-gray-50 rounded px-2 cursor-pointer"
+                         onClick={() => handleEmployeeClick(emp)}>
+                      <Avatar className="w-6 h-6">
+                        <AvatarFallback className="bg-gray-600 text-white text-xs">
+                          {emp.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-gray-900 truncate">{emp.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{emp.designation}</div>
                       </div>
-                      <div className="ml-6 space-y-1">
-                        {DEPARTMENT_DATA[dept][subDept]
-                        .filter(e => e.Name.toLowerCase().includes(searchTerm.toLowerCase()))
-                        .map((emp, index) => (
-                          <div key={index} className="flex items-center space-x-2 py-1 hover:bg-gray-50 rounded px-2 cursor-pointer"
-                               onClick={() => handleEmployeeClick(emp)}>
-                            <Avatar className="w-6 h-6">
-                              <AvatarFallback className="bg-gray-600 text-white text-xs">
-                                {emp.Name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-medium text-gray-900 truncate">{emp.Name}</div>
-                              <div className="text-xs text-gray-500 truncate">{emp.Designation}</div>
-                            </div>
-                             <div className={`w-2 h-2 rounded-full ${
-                                userStatuses[emp["Email ID"]] === MOCK_USER_STATUS.ONLINE ? 'bg-green-500' :
-                                userStatuses[emp["Email ID"]] === MOCK_USER_STATUS.BUSY ? 'bg-red-500' : 'bg-gray-400'
-                              }`}></div>
-                          </div>
-                        ))}
-                      </div>
+                       <div className={`w-2 h-2 rounded-full ${
+                          userStatuses[emp.email] === MOCK_USER_STATUS.ONLINE ? 'bg-green-500' :
+                          userStatuses[emp.email] === MOCK_USER_STATUS.BUSY ? 'bg-red-500' : 'bg-gray-400'
+                        }`}></div>
                     </div>
                   ))}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -18,7 +18,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 from google.auth.exceptions import RefreshError
-from backend.mock_data import DEPARTMENT_DATA
+from .mock_data import DEPARTMENT_DATA
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')

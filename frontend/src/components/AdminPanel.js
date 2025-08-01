@@ -21,24 +21,46 @@ import {
   UserX,
   Settings
 } from 'lucide-react';
-import { getAllEmployees } from '../data/mock';
 import { useToast } from '../hooks/use-toast';
 
 const AdminPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  const allEmployees = getAllEmployees();
-  const filteredEmployees = allEmployees.filter(emp => 
-    emp.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp["Email ID"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.Department.toLowerCase().includes(searchTerm.toLowerCase())
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true);
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+        const response = await fetch(`${backendUrl}/api/employees`);
+        if (response.ok) {
+          const data = await response.json();
+          setAllEmployees(data);
+        } else {
+          toast({ title: "Error", description: "Failed to fetch employees.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "An error occurred while fetching employees.", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, [toast]);
+
+  const filteredEmployees = allEmployees.filter(emp =>
+    emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handlePasswordReset = (employee) => {
@@ -136,18 +158,18 @@ const AdminPanel = () => {
         <CardContent>
           <div className="space-y-4">
             {filteredEmployees.map((employee, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+              <div key={employee.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="flex items-center space-x-4">
                   <Avatar className="w-10 h-10">
                     <AvatarFallback className="bg-[#225F8B] text-white">
-                      {employee.Name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      {employee.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="font-medium text-gray-900">{employee.Name}</div>
-                    <div className="text-sm text-gray-500">{employee["Email ID"]}</div>
+                    <div className="font-medium text-gray-900">{employee.name}</div>
+                    <div className="text-sm text-gray-500">{employee.email}</div>
                     <div className="text-xs text-gray-500">
-                      {employee.Designation} • {employee.Department}
+                      {employee.designation} • {employee.department}
                     </div>
                   </div>
                 </div>
@@ -197,12 +219,12 @@ const AdminPanel = () => {
                 <div className="flex items-center space-x-2 mt-1">
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="bg-[#225F8B] text-white text-xs">
-                      {selectedUser?.Name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      {selectedUser?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="font-medium text-sm">{selectedUser?.Name}</div>
-                    <div className="text-xs text-gray-500">{selectedUser?.["Email ID"]}</div>
+                    <div className="font-medium text-sm">{selectedUser?.name}</div>
+                    <div className="text-xs text-gray-500">{selectedUser?.email}</div>
                   </div>
                 </div>
               </div>
@@ -271,8 +293,8 @@ const AdminPanel = () => {
                 </Label>
                 <Input
                   id="editName"
-                  value={editingUser.Name}
-                  onChange={(e) => setEditingUser({...editingUser, Name: e.target.value})}
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
                   className="mt-1"
                 />
               </div>
@@ -284,8 +306,8 @@ const AdminPanel = () => {
                 <Input
                   id="editEmail"
                   type="email"
-                  value={editingUser["Email ID"]}
-                  onChange={(e) => setEditingUser({...editingUser, "Email ID": e.target.value})}
+                  value={editingUser.email}
+                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
                   className="mt-1"
                 />
               </div>
@@ -296,8 +318,8 @@ const AdminPanel = () => {
                 </Label>
                 <Input
                   id="editDesignation"
-                  value={editingUser.Designation}
-                  onChange={(e) => setEditingUser({...editingUser, Designation: e.target.value})}
+                  value={editingUser.designation}
+                  onChange={(e) => setEditingUser({...editingUser, designation: e.target.value})}
                   className="mt-1"
                 />
               </div>

@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { User, Mail, Building, Users, Calendar, Edit3, Save, X, Network, ChevronRight, Lock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
-import { DEPARTMENT_DATA, getAllEmployees } from '../data/mock';
 
 const UserProfile = () => {
   const { user, updateProfile } = useAuth();
@@ -19,6 +18,10 @@ const UserProfile = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [teamStructure, setTeamStructure] = useState({ teammates: [], manager: null, directReports: [] });
+  const [loading, setLoading] = useState(true);
+
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -31,6 +34,46 @@ const UserProfile = () => {
     newPassword: '',
     confirmPassword: ''
   });
+
+  useEffect(() => {
+    const fetchAndProcessEmployees = async () => {
+      if (!user) return;
+      try {
+        setLoading(true);
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+        const response = await fetch(`${backendUrl}/api/employees`);
+        if (response.ok) {
+          const employeesData = await response.json();
+          setAllEmployees(employeesData);
+
+          // Process team structure
+          const teammates = employeesData.filter(emp =>
+            emp.department === user.department &&
+            emp.team === user.team &&
+            emp.email !== user.email
+          );
+          const manager = employeesData.find(emp =>
+            emp.name === user.reviewer ||
+            user.reviewer?.includes(emp.name)
+          );
+          const directReports = employeesData.filter(emp =>
+            emp.reviewer === user.name ||
+            emp.reviewer?.includes(user.name)
+          );
+          setTeamStructure({ teammates, manager, directReports });
+
+        } else {
+          toast({ title: "Error", description: "Failed to fetch employee data.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "An error occurred while fetching data.", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAndProcessEmployees();
+  }, [user, toast]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -108,35 +151,7 @@ const UserProfile = () => {
     setIsEditing(false);
   };
 
-  // Get team structure and reporting hierarchy
-  const getTeamStructure = () => {
-    if (!user?.department || !user?.subDepartment) return { teammates: [], manager: null, directReports: [] };
-    
-    const allEmployees = getAllEmployees();
-    
-    // Find teammates (same department and sub-department)
-    const teammates = allEmployees.filter(emp => 
-      emp.Department === user.department && 
-      emp.SubDepartment === user.subDepartment &&
-      emp["Email ID"] !== user.email
-    );
-    
-    // Find manager (person this user reports to)
-    const manager = allEmployees.find(emp => 
-      emp.Name === user.reviewer || 
-      user.reviewer?.includes(emp.Name)
-    );
-    
-    // Find direct reports (people who report to this user)
-    const directReports = allEmployees.filter(emp => 
-      emp.Reviewer === user.name ||
-      emp.Reviewer?.includes(user.name)
-    );
-    
-    return { teammates, manager, directReports };
-  };
-
-  const { teammates, manager, directReports } = getTeamStructure();
+  const { teammates, manager, directReports } = teamStructure;
 
   return (
     <div className="space-y-6">
@@ -496,13 +511,13 @@ const UserProfile = () => {
                   <div className="flex items-center space-x-3">
                     <Avatar className="w-10 h-10">
                       <AvatarFallback className="bg-[#225F8B] text-white text-sm">
-                        {manager.Name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        {manager.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium text-gray-900">{manager.Name}</p>
-                      <p className="text-sm text-gray-600">{manager.Designation}</p>
-                      <p className="text-xs text-gray-500">{manager["Email ID"]}</p>
+                      <p className="font-medium text-gray-900">{manager.name}</p>
+                      <p className="text-sm text-gray-600">{manager.designation}</p>
+                      <p className="text-xs text-gray-500">{manager.email}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -524,12 +539,12 @@ const UserProfile = () => {
                       <div className="flex items-center space-x-3">
                         <Avatar className="w-8 h-8">
                           <AvatarFallback className="bg-gray-600 text-white text-xs">
-                            {report.Name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            {report.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{report.Name}</p>
-                          <p className="text-xs text-gray-600">{report.Designation}</p>
+                          <p className="text-sm font-medium text-gray-900">{report.name}</p>
+                          <p className="text-xs text-gray-600">{report.designation}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -553,12 +568,12 @@ const UserProfile = () => {
                       <div className="flex items-center space-x-3">
                         <Avatar className="w-8 h-8">
                           <AvatarFallback className="bg-blue-600 text-white text-xs">
-                            {teammate.Name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            {teammate.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{teammate.Name}</p>
-                          <p className="text-xs text-gray-600">{teammate.Designation}</p>
+                          <p className="text-sm font-medium text-gray-900">{teammate.name}</p>
+                          <p className="text-xs text-gray-600">{teammate.designation}</p>
                         </div>
                       </div>
                     </CardContent>

@@ -734,7 +734,8 @@ DEPARTMENT_DATA = {
       {
         "Name": "Sabavat Eshwar Naik",
         "Designation": "Reporting manager",
-        "Reviewer": "Anant Tiwari, Alimpan.
+        "Reviewer": "Anant Tiwari, Alimpan Banerjee",
+        "Email ID": "sabavat.eshwar@showtimeconsulting.in"
       },
       {
         "Name": "Challa Sravya",

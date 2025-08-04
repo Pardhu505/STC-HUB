@@ -1,9 +1,3 @@
-import sys
-from pathlib import Path
-# Add the project root to the Python path
-root_dir = Path(__file__).resolve().parent.parent
-sys.path.append(str(root_dir))
-
 from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -11,6 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 import uuid
@@ -23,7 +18,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 from google.auth.exceptions import RefreshError
-from backend.mock_data import DEPARTMENT_DATA
+from .mock_data import DEPARTMENT_DATA
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')

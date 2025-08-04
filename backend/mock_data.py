@@ -451,7 +451,7 @@ DEPARTMENT_DATA = {
         "Name": "Puvvadi Vinod Kumar",
         "Designation": "Employee",
         "Reviewer": "Lokesh Reddy",
-        "Email ID":.
+        "Email ID": "vinod.kumar@showtimeconsulting.in"
       },
       {
         "Name": "S Venkatesh",
@@ -796,7 +796,8 @@ DEPARTMENT_DATA = {
       {
         "Name": "Dharma Siva Sai Naik",
         "Designation": "Employee",
-        "Reviewer": "Nikash Kumar",.
+        "Reviewer": "Nikash Kumar",
+        "Email ID": "dharma@showtimeconsulting.in"
       },
       {
         "Name": "Yash Malhotra",
@@ -814,4 +815,4 @@ DEPARTMENT_DATA = {
       }
     ]
   }
-}
+};

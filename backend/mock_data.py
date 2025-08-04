@@ -451,7 +451,7 @@ DEPARTMENT_DATA = {
         "Name": "Puvvadi Vinod Kumar",
         "Designation": "Employee",
         "Reviewer": "Lokesh Reddy",
-        "Email ID":.
+        "Email ID": "vinod.kumar@showtimeconsulting.in"
       },
       {
         "Name": "S Venkatesh",
@@ -734,7 +734,8 @@ DEPARTMENT_DATA = {
       {
         "Name": "Sabavat Eshwar Naik",
         "Designation": "Reporting manager",
-        "Reviewer": "Anant Tiwari, Alimpan.
+        "Reviewer": "Anant Tiwari, Alimpan Banerjee",
+        "Email ID": "sabavat.eshwar@showtimeconsulting.in"
       },
       {
         "Name": "Challa Sravya",
@@ -795,7 +796,8 @@ DEPARTMENT_DATA = {
       {
         "Name": "Dharma Siva Sai Naik",
         "Designation": "Employee",
-        "Reviewer": "Nikash Kumar",.
+        "Reviewer": "Nikash Kumar",
+        "Email ID": "dharma@showtimeconsulting.in"
       },
       {
         "Name": "Yash Malhotra",

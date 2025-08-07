@@ -687,12 +687,24 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
 app.include_router(api_router)
 app.include_router(auth_router)
 
+from starlette.requests import Request
+from starlette.responses import Response
+
+@app.middleware("http")
+async def add_cors_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers['Access-Control-Allow-Origin'] = 'https://stc-hub-vcq4.vercel.app'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
     allow_origins=["https://stc-hub-vcq4.vercel.app", "http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 # Configure logging

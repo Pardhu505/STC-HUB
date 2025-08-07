@@ -690,7 +690,7 @@ app.include_router(auth_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"], # Adjust for production
+    allow_origins=["https://stc-hub-vcq4.vercel.app", "http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -713,12 +713,18 @@ async def populate_initial_data():
             for department, teams in DEPARTMENT_DATA.items():
                 for team, employees in teams.items():
                     for employee_data in employees:
+                        full_name = employee_data["Name"]
+                        first_name = full_name.split(" ")[0]
+                        last_name = " ".join(full_name.split(" ")[1:]) if " " in full_name else ""
+
                         employee = Employee(
-                            name=employee_data["Name"],
+                            firstName=first_name,
+                            lastName=last_name,
                             email=employee_data["Email ID"],
                             designation=employee_data["Designation"],
                             department=department,
-                            # team=team, # Add team to model if needed
+                            team=team,
+                            hashed_password=get_password_hash("password"), # Add a dummy password
                         )
                         employees_to_insert.append(employee.model_dump())
 

@@ -12,6 +12,7 @@ const Signup = () => {
     firstName: '',
     lastName: '',
     email: '',
+    designation: '',
     department: '',
     team: '',
     password: '',
@@ -49,6 +50,7 @@ const Signup = () => {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
+          designation: formData.designation,
           department: formData.department,
           team: formData.team,
           password: formData.password,
@@ -92,6 +94,10 @@ const Signup = () => {
             <div className="space-y-1">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={formData.email} onChange={handleChange} required />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="designation">Designation</Label>
+              <Input id="designation" type="text" value={formData.designation} onChange={handleChange} required />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">

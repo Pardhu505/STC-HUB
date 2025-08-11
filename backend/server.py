@@ -140,6 +140,7 @@ class UserCreate(BaseModel):
     firstName: str
     lastName: str
     email: str
+    designation: str
     department: str
     team: Optional[str] = None
     password: str
@@ -531,14 +532,15 @@ async def signup(user_data: UserCreate):
 
     hashed_password = get_password_hash(user_data.password)
 
-    employee_data = user_data.model_dump()
-    employee_data.pop("password")
-    employee_data["hashed_password"] = hashed_password
-
-    # Create the full name
-    employee_data["name"] = f"{user_data.firstName} {user_data.lastName}"
-
-    employee = Employee(**employee_data)
+    employee = Employee(
+        firstName=user_data.firstName,
+        lastName=user_data.lastName,
+        email=user_data.email,
+        designation=user_data.designation,
+        department=user_data.department,
+        team=user_data.team,
+        hashed_password=get_password_hash(user_data.password)
+    )
 
     await db.employees.insert_one(employee.model_dump())
 

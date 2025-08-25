@@ -158,6 +158,17 @@ class Meeting(BaseModel):
     calendar_event_id: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+class AttendanceRecord(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    employee_id: str
+    employee_name: str
+    date: str
+    s_in_time: Optional[str] = None
+    s_out_time: Optional[str] = None
+    work_duration: Optional[str] = None
+    break_records: Optional[str] = None
+    status: str # Present, Absent, Holiday, Weekoff
+
 class MeetingCreate(BaseModel):
     title: str
     description: str | None = None
@@ -780,3 +791,85 @@ async def shutdown_db_client():
     #    await db.users.update_one({"user_id": user_id}, {"$set": {"last_status": status}}, upsert=True)
     client.close()
     logger.info("Application shutdown: MongoDB client closed.")
+
+import csv
+
+@api_router.post("/attendance/upload")
+async def upload_attendance(file: UploadFile = File(...)):
+    """
+    Uploads attendance data from a CSV file.
+    The CSV should have the following columns: Employee Email, Employee Name, Date, S.InTime, S.OutTime, Work Duration, Break records, Status
+    """
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
+
+    contents = await file.read()
+    decoded_content = contents.decode('utf-8').splitlines()
+
+    reader = csv.DictReader(decoded_content)
+
+    attendance_records = []
+    for row in reader:
+        employee = await db.employees.find_one({"email": row["Employee Email"]})
+        if not employee:
+            # Skip this record or handle the error
+            continue
+
+        record = AttendanceRecord(
+            employee_id=employee["id"],
+            employee_name=row["Employee Name"],
+            date=row["Date"],
+            s_in_time=row.get("S.InTime"),
+            s_out_time=row.get("S.OutTime"),
+            work_duration=row.get("Work Duration"),
+            break_records=row.get("Break records"),
+            status=row["Status"]
+        )
+        attendance_records.append(record.model_dump())
+
+    if attendance_records:
+        await db.attendance.insert_many(attendance_records)
+
+    return {"message": f"Successfully uploaded and processed {len(attendance_records)} attendance records."}
+
+@api_router.get("/attendance")
+async def get_attendance(
+    user_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    # This is a placeholder for getting the current user's role
+    # In a real application, this would come from the auth token
+    current_user_role: str = "employee"
+):
+    """
+    Retrieves attendance data for a user or a team.
+    - Employees can see their own data.
+    - Managers can see their team's data.
+    - Admins can see everyone's data.
+    """
+    query = {}
+
+    # In a real app, you would get the user's role and team from the database
+    # For now, we'll use a mock structure.
+    user = await db.employees.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.get("isAdmin"):
+        # Admin can see all data
+        pass
+    elif user.get("isManager"): # You would need to add an 'isManager' field to your employee model
+        # Manager can see their team's data
+        team_members = await db.employees.find({"team": user.get("team")}).to_list(1000)
+        employee_ids = [member["id"] for member in team_members]
+        query["employee_id"] = {"$in": employee_ids}
+    else:
+        # Employee can only see their own data
+        query["employee_id"] = user_id
+
+    if start_date and end_date:
+        query["date"] = {"$gte": start_date, "$lte": end_date}
+
+    records = await db.attendance.find(query).to_list(1000)
+
+    return records

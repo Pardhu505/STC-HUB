@@ -8,11 +8,12 @@ import InternalCommunication from './InternalCommunication';
 import AdminPanel from './AdminPanel';
 import PayslipManagement from './PayslipManagement';
 import MeetingScheduler from './MeetingScheduler';
+import Attendance from './Attendance';
 import NotificationSystem from './NotificationSystem';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Calendar, Users, BarChart3, Bell, MessageSquare, Gift, Shield, FileText, Video } from 'lucide-react';
+import { Calendar, Users, BarChart3, Bell, MessageSquare, Gift, Shield, FileText, Video, ClipboardList } from 'lucide-react';
 import { checkBirthdays, generateBirthdayAnnouncements } from '../data/mock';
 
 const Dashboard = () => {
@@ -59,6 +60,8 @@ const Dashboard = () => {
         return <AdminPanel />;
       case 'payslips':
         return <PayslipManagement />;
+      case 'attendance':
+        return <Attendance />;
       default:
         return <PortalCards />;
     }
@@ -70,6 +73,7 @@ const Dashboard = () => {
     { id: 'communication', label: 'Communication', icon: MessageSquare },
     { id: 'meetings', label: 'Meetings', icon: Video },
     { id: 'payslips', label: 'Payslips', icon: FileText },
+    { id: 'attendance', label: 'Attendance', icon: ClipboardList },
     ...(user?.isAdmin ? [{ id: 'admin', label: 'Admin Panel', icon: Shield }] : []),
     { id: 'profile', label: 'Profile', icon: Users }
   ];

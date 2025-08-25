@@ -576,6 +576,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         data={"sub": user["email"], "id": user["id"]}, expires_delta=access_token_expires
     )
 
+    # Remove the non-serializable ObjectId before returning the user object
+    user.pop("_id", None)
+
     return {"access_token": access_token, "token_type": "bearer", "user": user}
 
 

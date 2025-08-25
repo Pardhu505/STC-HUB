@@ -166,8 +166,12 @@ class AttendanceRecord(BaseModel):
     s_in_time: Optional[str] = None
     s_out_time: Optional[str] = None
     work_duration: Optional[str] = None
-    break_records: Optional[str] = None
-    status: str # Present, Absent, Holiday, Weekoff
+    ot: Optional[str] = None
+    total_duration: Optional[str] = None
+    late_by: Optional[str] = None
+    early_going_by: Optional[str] = None
+    status: str
+    punch_records: Optional[str] = None
 
 class MeetingCreate(BaseModel):
     title: str
@@ -798,7 +802,7 @@ import csv
 async def upload_attendance(file: UploadFile = File(...)):
     """
     Uploads attendance data from a CSV file.
-    The CSV should have the following columns: Employee Email, Employee Name, Date, S.InTime, S.OutTime, Work Duration, Break records, Status
+    The CSV should have the following columns: Att. Date, Emp Code, Employee Name, S. InTime, S. OutTime, Work Dur, OT, Tot. Dur, LateBy, EarlyGoingBy, Status, Punch Records
     """
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
@@ -810,7 +814,7 @@ async def upload_attendance(file: UploadFile = File(...)):
 
     attendance_records = []
     for row in reader:
-        employee = await db.employees.find_one({"email": row["Employee Email"]})
+        employee = await db.employees.find_one({"email": row["Emp Code"]})
         if not employee:
             # Skip this record or handle the error
             continue
@@ -818,12 +822,16 @@ async def upload_attendance(file: UploadFile = File(...)):
         record = AttendanceRecord(
             employee_id=employee["id"],
             employee_name=row["Employee Name"],
-            date=row["Date"],
-            s_in_time=row.get("S.InTime"),
-            s_out_time=row.get("S.OutTime"),
-            work_duration=row.get("Work Duration"),
-            break_records=row.get("Break records"),
-            status=row["Status"]
+            date=row["Att. Date"],
+            s_in_time=row.get("S. InTime"),
+            s_out_time=row.get("S. OutTime"),
+            work_duration=row.get("Work Dur"),
+            ot=row.get("OT"),
+            total_duration=row.get("Tot. Dur"),
+            late_by=row.get("LateBy"),
+            early_going_by=row.get("EarlyGoingBy"),
+            status=row["Status"],
+            punch_records=row.get("Punch Records")
         )
         attendance_records.append(record.model_dump())
 

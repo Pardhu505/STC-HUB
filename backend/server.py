@@ -768,24 +768,35 @@ async def populate_initial_data():
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("Starting up application...")
     try:
+        logger.info("Pinging MongoDB...")
         await client.admin.command('ping')
         logger.info("MongoDB connection successful.")
     except Exception as e:
-        logger.error(f"MongoDB connection failed: {e}")
+        logger.error(f"MongoDB connection failed: {e}", exc_info=True)
+        raise e
 
-    await populate_initial_data()
-
-    # Initialize anything needed on startup, e.g., load initial statuses from DB if persisted
-    logger.info("Application startup: WebSocket ConnectionManager initialized.")
-    # Test Google Services
     try:
-        drive_service = get_drive_service()
-        logger.info("Google Drive service initialized successfully.")
-        calendar_service = get_calendar_service()
-        logger.info("Google Calendar service initialized successfully.")
+        logger.info("Populating initial data...")
+        await populate_initial_data()
+        logger.info("Initial data population complete.")
     except Exception as e:
-        logger.error(f"Google services initialization failed: {e}")
+        logger.error(f"Error during initial data population: {e}", exc_info=True)
+
+    try:
+        if GOOGLE_DRIVE_CREDENTIALS_PATH.exists() and GOOGLE_MEET_CREDENTIALS_PATH.exists():
+            logger.info("Initializing Google services...")
+            drive_service = get_drive_service()
+            logger.info("Google Drive service initialized successfully.")
+            calendar_service = get_calendar_service()
+            logger.info("Google Calendar service initialized successfully.")
+        else:
+            logger.warning("Google credentials files not found. Skipping Google services initialization.")
+    except Exception as e:
+        logger.error(f"Google services initialization failed: {e}", exc_info=True)
+
+    logger.info("Application startup complete.")
 
 
 @app.on_event("shutdown")

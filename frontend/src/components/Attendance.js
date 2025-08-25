@@ -81,10 +81,16 @@ const Attendance = () => {
       weekoff: 0,
     };
     filteredData.forEach(record => {
-      if (record.status.toLowerCase() === 'present') counts.present++;
-      else if (record.status.toLowerCase() === 'absent') counts.absent++;
-      else if (record.status.toLowerCase() === 'holiday') counts.holiday++;
-      else if (record.status.toLowerCase() === 'weekoff') counts.weekoff++;
+      const status = record.status.toLowerCase();
+      if (status === 'present' || status === 'weeklyoff present' || status === '½present') {
+        counts.present++;
+      } else if (status === 'absent') {
+        counts.absent++;
+      } else if (status === 'holiday') {
+        counts.holiday++;
+      } else if (status === 'weeklyoff') {
+        counts.weekoff++;
+      }
     });
     return counts;
   };
@@ -160,28 +166,36 @@ const Attendance = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee ID</TableHead>
                 <TableHead>Employee Name</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>In Time</TableHead>
                 <TableHead>Out Time</TableHead>
                 <TableHead>Work Duration</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>OT</TableHead>
+                <TableHead>Total Duration</TableHead>
+                <TableHead>Late By</TableHead>
+                <TableHead>Early Going By</TableHead>
+                <TableHead>Punch Records</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan="7" className="text-center">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan="11" className="text-center">Loading...</TableCell></TableRow>
               ) : (
                 filteredData.map(record => (
                   <TableRow key={record.id}>
-                    <TableCell>{record.employee_id}</TableCell>
                     <TableCell>{record.employee_name}</TableCell>
                     <TableCell>{record.date}</TableCell>
+                    <TableCell>{record.status}</TableCell>
                     <TableCell>{record.s_in_time}</TableCell>
                     <TableCell>{record.s_out_time}</TableCell>
                     <TableCell>{record.work_duration}</TableCell>
-                    <TableCell>{record.status}</TableCell>
+                    <TableCell>{record.ot}</TableCell>
+                    <TableCell>{record.total_duration}</TableCell>
+                    <TableCell>{record.late_by}</TableCell>
+                    <TableCell>{record.early_going_by}</TableCell>
+                    <TableCell>{record.punch_records}</TableCell>
                   </TableRow>
                 ))
               )}

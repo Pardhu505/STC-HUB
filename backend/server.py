@@ -732,38 +732,70 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 async def populate_initial_data():
-    """Populates the database with initial employee data if it's empty."""
+    """
+    Populates the database with initial employee data from mock_data.
+    This function is idempotent: it will update existing users or create new ones.
+    """
     try:
-        # Check if the employees collection is empty
-        if await db.employees.count_documents({}) == 0:
-            logger.info("Employees collection is empty. Populating with initial data...")
+        logger.info("Starting data population...")
+        hashed_password = get_password_hash("Welcome@123")
 
-            employees_to_insert = []
-            for department, teams in DEPARTMENT_DATA.items():
-                for team, employees in teams.items():
-                    for employee_data in employees:
-                        full_name = employee_data["Name"]
-                        first_name = full_name.split(" ")[0]
-                        last_name = " ".join(full_name.split(" ")[1:]) if " " in full_name else ""
+        update_count = 0
+        insert_count = 0
 
-                        employee = Employee(
-                            firstName=first_name,
-                            lastName=last_name,
-                            email=employee_data["Email ID"],
-                            designation=employee_data["Designation"],
-                            department=department,
-                            team=team,
-                            hashed_password=get_password_hash("password"), # Add a dummy password
-                        )
-                        employees_to_insert.append(employee.model_dump())
+        for department, teams in DEPARTMENT_DATA.items():
+            for team, employees in teams.items():
+                for employee_data in employees:
+                    full_name = employee_data["Name"]
+                    first_name = full_name.split(" ")[0]
+                    last_name = " ".join(full_name.split(" ")[1:]) if " " in full_name else ""
+                    email = employee_data["Email ID"]
 
-            if employees_to_insert:
-                await db.employees.insert_many(employees_to_insert)
-                logger.info(f"Successfully inserted {len(employees_to_insert)} employees into the database.")
-        else:
-            logger.info("Employees collection already contains data. Skipping population.")
+                    # Prepare the document with all fields
+                    employee_doc = {
+                        "firstName": first_name,
+                        "lastName": last_name,
+                        "name": full_name,
+                        "email": email,
+                        "designation": employee_data["Designation"],
+                        "department": department,
+                        "team": team,
+                        "hashed_password": hashed_password,
+                        # Add other fields from the Employee model with default values if necessary
+                        "id": str(uuid.uuid4()),
+                        "date_of_birth": None,
+                    }
+
+                    # Using update_one with upsert ensures atomicity for each document
+                    result = await db.employees.update_one(
+                        {"email": email},
+                        {
+                            "$set": {
+                                "firstName": employee_doc["firstName"],
+                                "lastName": employee_doc["lastName"],
+                                "name": employee_doc["name"],
+                                "designation": employee_doc["designation"],
+                                "department": employee_doc["department"],
+                                "team": employee_doc["team"],
+                                "hashed_password": employee_doc["hashed_password"],
+                            },
+                            "$setOnInsert": {
+                                "id": employee_doc["id"],
+                                "date_of_birth": employee_doc["date_of_birth"]
+                            }
+                        },
+                        upsert=True
+                    )
+
+                    if result.upserted_id:
+                        insert_count += 1
+                    elif result.modified_count > 0:
+                        update_count += 1
+
+        logger.info(f"Data population complete. Inserted: {insert_count}, Updated: {update_count}.")
+
     except Exception as e:
-        logger.error(f"Error during initial data population: {e}")
+        logger.error(f"Error during initial data population: {e}", exc_info=True)
 
 
 @app.on_event("startup")
